@@ -24,7 +24,14 @@ app = Flask(__name__)
 app.secret_key = os.getenv("HAMC_SECRET", secrets.token_hex(32))
 app.permanent_session_lifetime = timedelta(days=30)
 
-store = Store(ROOT / "data" / "hamc.db")
+def database_path() -> Path:
+    # Vercel only allows writes in /tmp, and that file is wiped between cold starts.
+    if os.getenv("VERCEL"):
+        return Path("/tmp/hamc.db")
+    return ROOT / "data" / "hamc.db"
+
+
+store = Store(database_path())
 client = ChatGPTClient()
 hamc = Orchestrator(store, client)
 
