@@ -3,7 +3,15 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#0b1f3a">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="HAM-C">
   <title>HAM-C</title>
+  <link rel="manifest" href="/manifest.webmanifest">
+  <link rel="icon" href="/static/icons/icon-192.png" type="image/png">
+  <link rel="apple-touch-icon" href="/static/icons/icon-192.png">
   <link rel="stylesheet" href="/static/style.css">
 </head>
 <body>
@@ -16,6 +24,7 @@
       <span class="badge {{ 'on' if chatgpt_ready else 'off' }}">
         {{ 'ChatGPT API on' if chatgpt_ready else 'Local fallback (no API key)' }}
       </span>
+      <button id="install-btn" type="button" class="install-btn" hidden>Install app</button>
       <button id="signin-btn" type="button" class="signin-btn">Sign in</button>
     </div>
   </header>

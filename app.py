@@ -9,7 +9,7 @@ from datetime import timedelta
 from pathlib import Path
 
 from dotenv import load_dotenv
-from flask import Flask, jsonify, render_template, request, session
+from flask import Flask, jsonify, render_template, request, send_from_directory, session
 from werkzeug.security import check_password_hash, generate_password_hash
 
 from hamc.chatgpt import ChatGPTClient
@@ -75,6 +75,22 @@ def home():
         chatgpt_ready=client.available,
         model=client.model if client.available else "local fallback",
     )
+
+
+@app.get("/manifest.webmanifest")
+def web_manifest():
+    response = send_from_directory(ROOT / "static", "manifest.webmanifest")
+    response.headers["Content-Type"] = "application/manifest+json"
+    return response
+
+
+@app.get("/sw.js")
+def service_worker():
+    response = send_from_directory(ROOT / "static", "sw.js")
+    response.headers["Content-Type"] = "application/javascript"
+    response.headers["Cache-Control"] = "no-cache"
+    response.headers["Service-Worker-Allowed"] = "/"
+    return response
 
 
 @app.get("/api/auth/me")

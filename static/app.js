@@ -590,3 +590,40 @@ form.onsubmit = async (event) => {
 
 renderDemos();
 bootstrap();
+
+const installBtn = document.getElementById("install-btn");
+let deferredInstall = null;
+const installed =
+  window.matchMedia("(display-mode: standalone)").matches ||
+  window.navigator.standalone === true;
+
+if ("serviceWorker" in navigator) {
+  navigator.serviceWorker.register("/sw.js").catch(() => {});
+}
+
+window.addEventListener("beforeinstallprompt", (event) => {
+  event.preventDefault();
+  deferredInstall = event;
+  if (!installed) installBtn.hidden = false;
+});
+
+window.addEventListener("appinstalled", () => {
+  deferredInstall = null;
+  installBtn.hidden = true;
+});
+
+const ios = /iphone|ipad|ipod/i.test(navigator.userAgent);
+if (ios && !installed) installBtn.hidden = false;
+
+installBtn.onclick = async () => {
+  if (deferredInstall) {
+    deferredInstall.prompt();
+    await deferredInstall.userChoice;
+    deferredInstall = null;
+    installBtn.hidden = true;
+    return;
+  }
+  if (ios) {
+    setStatus("On iPhone, tap Share, then Add to Home Screen.");
+  }
+};
