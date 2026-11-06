@@ -1,0 +1,160 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>HAM-C</title>
+  <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+  <header>
+    <div class="brand">
+      <h1>HAM-C</h1>
+      <p>Hierarchical Auditable Memory for ChatGPT</p>
+    </div>
+    <div class="header-right">
+      <span class="badge {{ 'on' if chatgpt_ready else 'off' }}">
+        {{ 'ChatGPT API on' if chatgpt_ready else 'Local fallback (no API key)' }}
+      </span>
+      <button id="signin-btn" type="button" class="signin-btn">Sign in</button>
+    </div>
+  </header>
+
+  <main>
+    <div id="drawer-backdrop" class="drawer-backdrop" hidden></div>
+
+    <aside class="chats" id="chats-panel">
+      <div class="panel-mobile-head">
+        <span>Chats</span>
+        <button type="button" class="icon-btn" id="close-chats" aria-label="Close chats">×</button>
+      </div>
+      <div class="chats-scroll">
+        <button id="new-chat" type="button">New chat</button>
+        <ul id="chat-list"></ul>
+        <h2>Try without an API key</h2>
+        <p class="hint">Click a line to send it. Then use Delete this chat for Test 3.</p>
+        <div id="demos"></div>
+      </div>
+      <div id="user-dock" class="user-dock" hidden>
+        <div id="user-menu" class="user-menu" hidden>
+          <button type="button" id="menu-settings" class="user-menu-item">Settings</button>
+          <button type="button" id="menu-logout" class="user-menu-item danger">Log out</button>
+        </div>
+        <button type="button" id="avatar-btn" class="avatar-btn" aria-haspopup="true" aria-expanded="false" title="Account">
+          <span id="avatar-initial" class="avatar-initial">U</span>
+          <span id="avatar-name" class="avatar-name">Account</span>
+          <span class="avatar-chevron" aria-hidden="true">▾</span>
+        </button>
+      </div>
+    </aside>
+
+    <section class="thread">
+      <div class="thread-bar">
+        <button type="button" class="icon-btn mobile-only" id="open-chats" aria-label="Open chats">
+          <span class="hamburger" aria-hidden="true"></span>
+        </button>
+        <h2 id="chat-title">New chat</h2>
+        <button id="delete-chat" type="button" hidden>Delete</button>
+        <button type="button" class="icon-btn mobile-only" id="open-facts" aria-label="Open facts">
+          <span class="facts-glyph" aria-hidden="true">≡</span>
+          <span class="facts-label">Facts</span>
+        </button>
+      </div>
+      <div id="messages" class="messages"></div>
+      <p id="status" class="status" hidden></p>
+      <form id="composer">
+        <input id="input" type="text" placeholder="Message HAM-C…" autocomplete="off" required>
+        <button id="send-btn" type="submit">Send</button>
+      </form>
+    </section>
+
+    <aside class="facts" id="facts-panel">
+      <div class="panel-mobile-head">
+        <span>Fact store</span>
+        <button type="button" class="icon-btn" id="close-facts" aria-label="Close facts">×</button>
+      </div>
+      <div class="facts-scroll">
+        <h2 class="desktop-facts-title">Fact store</h2>
+        <p class="hint">These facts belong to HAM-C. Deleting a chat also deletes facts that came from it.</p>
+        <ul id="fact-list"></ul>
+      </div>
+    </aside>
+  </main>
+
+  <div id="auth-modal" class="auth-modal" hidden>
+    <div class="auth-backdrop" id="auth-backdrop"></div>
+    <div class="auth-card" role="dialog" aria-modal="true" aria-labelledby="auth-title">
+      <button type="button" class="auth-close" id="auth-close" aria-label="Close">×</button>
+      <h2 id="auth-title">HAM-C</h2>
+      <div class="auth-tabs">
+        <button type="button" class="auth-tab active" data-tab="login">Sign in</button>
+        <button type="button" class="auth-tab" data-tab="register">Create account</button>
+      </div>
+      <form id="auth-form" autocomplete="off">
+        <label id="auth-name-wrap" class="auth-register-only" hidden>Name
+          <input id="auth-name" type="text" autocomplete="off" maxlength="80" placeholder="Your full name">
+        </label>
+        <label id="auth-nickname-wrap" class="auth-register-only" hidden>Nickname
+          <input id="auth-nickname" type="text" autocomplete="off" maxlength="40" placeholder="Your nickname">
+        </label>
+        <label>Email
+          <input id="auth-email" type="email" autocomplete="off" required placeholder="you@example.com">
+        </label>
+        <label>Password
+          <input id="auth-password" type="password" autocomplete="off" required minlength="6" placeholder="At least 6 characters">
+        </label>
+        <p id="auth-error" class="auth-error" hidden></p>
+        <button id="auth-submit" type="submit">Sign in</button>
+      </form>
+      <button id="guest-btn" type="button" class="guest-btn">Continue as guest</button>
+    </div>
+  </div>
+
+  <div id="settings-modal" class="auth-modal" hidden>
+    <div class="auth-backdrop" id="settings-backdrop"></div>
+    <div class="auth-card settings-card" role="dialog" aria-modal="true" aria-labelledby="settings-title">
+      <button type="button" class="auth-close" id="settings-close" aria-label="Close">×</button>
+      <h2 id="settings-title">Settings</h2>
+      <p class="settings-sub">Account</p>
+
+      <form id="profile-form" class="settings-block">
+        <label>Name
+          <input id="settings-name" type="text" maxlength="80" required>
+        </label>
+        <label>Nickname
+          <input id="settings-nickname" type="text" maxlength="40" required>
+        </label>
+        <label>Email
+          <input id="settings-email" type="email" disabled>
+        </label>
+        <p id="profile-msg" class="settings-msg" hidden></p>
+        <button type="submit" class="settings-save">Save profile</button>
+      </form>
+
+      <form id="password-form" class="settings-block">
+        <p class="settings-sub">Change password</p>
+        <label>Current password
+          <input id="settings-current-pw" type="password" autocomplete="current-password" required minlength="6">
+        </label>
+        <label>New password
+          <input id="settings-new-pw" type="password" autocomplete="new-password" required minlength="6" placeholder="At least 6 characters">
+        </label>
+        <p id="password-msg" class="settings-msg" hidden></p>
+        <button type="submit" class="settings-save">Update password</button>
+      </form>
+
+      <div class="settings-danger">
+        <p class="settings-sub danger-label">Danger zone</p>
+        <p class="hint">Delete your account and all of your chats and facts. This cannot be undone.</p>
+        <label>Confirm with your password
+          <input id="settings-delete-pw" type="password" autocomplete="current-password" minlength="6" placeholder="Password">
+        </label>
+        <p id="delete-msg" class="settings-msg" hidden></p>
+        <button type="button" id="delete-account-btn" class="danger-btn">Delete account</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="/static/app.js"></script>
+</body>
+</html>
