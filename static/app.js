@@ -344,10 +344,47 @@ function escapeHtml(value) {
     .replaceAll(">", "&gt;");
 }
 
+function appendBubble(role, content) {
+  const welcome = messagesEl.querySelector(".welcome");
+  if (welcome) welcome.remove();
+  const div = document.createElement("div");
+  div.className = `bubble ${role}`;
+  div.textContent = content;
+  messagesEl.appendChild(div);
+  messagesEl.scrollTop = messagesEl.scrollHeight;
+  return div;
+}
+
+function showThinking() {
+  const existing = document.getElementById("thinking-bubble");
+  if (existing) existing.remove();
+  const wrap = document.createElement("div");
+  wrap.id = "thinking-bubble";
+  wrap.className = "bubble assistant thinking";
+  wrap.setAttribute("aria-live", "polite");
+  wrap.innerHTML =
+    '<span class="thinking-dots" aria-hidden="true"><span></span><span></span><span></span></span>' +
+    '<span class="thinking-label">Thinking…</span>';
+  messagesEl.appendChild(wrap);
+  messagesEl.scrollTop = messagesEl.scrollHeight;
+  return wrap;
+}
+
+function clearThinking() {
+  const el = document.getElementById("thinking-bubble");
+  if (el) el.remove();
+}
+
 async function sendText(text) {
   if (busy) return;
   setBusy(true);
   setStatus("");
+  appendBubble("user", text);
+  if (!currentChatId) {
+    titleEl.textContent = text.slice(0, 48) || "New chat";
+    deleteBtn.hidden = false;
+  }
+  showThinking();
   try {
     if (!currentChatId) {
       const chat = await api("/api/chats", { method: "POST" });
@@ -360,6 +397,7 @@ async function sendText(text) {
     });
     await load(currentChatId);
   } catch (err) {
+    clearThinking();
     setStatus(err.message, true);
   } finally {
     setBusy(false);
