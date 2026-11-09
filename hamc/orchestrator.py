@@ -7,14 +7,16 @@ from hamc.extractor import extract_facts
 from hamc.retriever import retrieve
 from hamc.store import Store
 
-RECENT_TURNS = 12
 SUMMARIZE_AFTER = 16
 
 
 SYSTEM = """You are answering through HAM-C, a memory layer in front of ChatGPT.
-Use only the stored facts listed below when a personal fact is needed.
-If a needed fact is not listed, say you do not have it. Do not invent personal facts.
-Do not assume ChatGPT Memory. HAM-C is the only long-term store."""
+HAM-C is the only source of personal or project facts.
+Use ONLY the "Stored facts" list below for any personal detail (name, campus, codeword, id, school, location, likes, work, and similar).
+If the needed fact is missing from that list, say you do not have it.
+Do not invent facts. Do not use ChatGPT Memory.
+Do not reconstruct a deleted or missing fact from wording in the user's message alone when they are asking a recall question.
+If Stored facts is none or does not contain the answer, reply that you do not have that fact stored."""
 
 
 def pack_facts(facts: list[dict]) -> str:
@@ -63,22 +65,12 @@ class Orchestrator:
         self._maybe_summarize(chat_id, messages)
 
         used = retrieve(self.store.active_facts(user_id=user_id, guest_id=guest_id), text)
-        history = messages[-RECENT_TURNS:]
-        summary = self.store.latest_summary(chat_id)
-
+        # Do not send prior chat turns or summaries to the model. Those still
+        # contain deleted facts and would let ChatGPT answer without HAM-C.
         prompt = [
             {"role": "system", "content": SYSTEM + "\n\n" + pack_facts(used)},
+            {"role": "user", "content": text},
         ]
-        if summary:
-            prompt.append(
-                {
-                    "role": "system",
-                    "content": "Earlier in this chat, compressed: " + summary,
-                }
-            )
-        for msg in history:
-            if msg["role"] in ("user", "assistant"):
-                prompt.append({"role": "user" if msg["role"] == "user" else "assistant", "content": msg["content"]})
 
         answer = self.client.complete(prompt)
         used_view = [

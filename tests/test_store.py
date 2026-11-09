@@ -48,6 +48,18 @@ class HamcTests(unittest.TestCase):
         self.store.delete_chat(chat["id"])
         self.assertFalse(any(f["value"] == "BLUE-88" for f in self._facts()))
 
+    def test_delete_fact_then_ask_same_chat_does_not_recall(self):
+        chat = self._chat()
+        self._send(chat["id"], "The project codeword is ORANGE-17.")
+        asked = self._send(chat["id"], "What is the project codeword?")
+        self.assertIn("ORANGE-17", asked["message"]["content"])
+        fact = next(f for f in self._facts() if f["value"] == "ORANGE-17")
+        self.store.delete_fact(fact["id"])
+        again = self._send(chat["id"], "What is the project codeword?")
+        self.assertFalse(again["used_facts"])
+        self.assertNotIn("ORANGE-17", again["message"]["content"])
+        self.assertIn("do not have", again["message"]["content"].lower())
+
     def test_name_is_saved_and_recalled(self):
         chat = self._chat()
         self._send(chat["id"], "hi i am Natus")
