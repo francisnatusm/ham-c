@@ -100,14 +100,19 @@ def mock_complete(messages: list[dict]) -> str:
             return rid
         return f"Saved. The research ID is {rid}."
     if "codeword" in q or "code word" in q:
-        return facts.get("codeword") or "I do not have that fact stored."
+        return facts.get("codeword") or "I don't have that information."
     if "campus" in q or "where do i study" in q or "which campus" in q:
-        return facts.get("campus") or "I do not have a campus fact stored."
+        return facts.get("campus") or "I don't have that information."
     if "research" in q or q.endswith(" id?") or "what is my id" in q:
-        return facts.get("research_id") or facts.get("id") or "I do not have that id stored."
+        return facts.get("research_id") or facts.get("id") or "I don't have that information."
     if "name" in q or "who am i" in q:
-        return facts.get("name") or "I do not have a name stored."
+        return facts.get("name") or "I don't have that information."
     if facts:
         used = "; ".join(f"{k} = {v}" for k, v in facts.items())
-        return f"From the stored facts: {used}."
-    return "I do not have a stored fact for that yet. Tell me something to remember, or ask about a fact already in the store."
+        return f"From what I have saved: {used}."
+    # Normal chat / unrelated questions when no matching stored facts.
+    if re.search(r"\b(hi|hello|hey|thanks|thank you|ok|okay|and|what do you mean)\b", q):
+        return "Happy to chat. Tell me something to remember, or ask about anything else."
+    if "time" in q:
+        return "I don't have a live clock here, but I can help with anything else."
+    return "Sure — tell me more, or share something you want me to remember."

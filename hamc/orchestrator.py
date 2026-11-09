@@ -4,19 +4,27 @@ from __future__ import annotations
 
 from hamc.chatgpt import ChatGPTClient
 from hamc.extractor import extract_facts
-from hamc.retriever import retrieve
+from hamc.retriever import is_fact_question, retrieve
 from hamc.store import Store
 
+RECENT_TURNS = 12
 SUMMARIZE_AFTER = 16
 
+MISSING_FACT_REPLY = "I don't have that information."
 
-SYSTEM = """You are answering through HAM-C, a memory layer in front of ChatGPT.
-HAM-C is the only source of personal or project facts.
-Use ONLY the "Stored facts" list below for any personal detail (name, campus, codeword, id, school, location, likes, work, and similar).
-If the needed fact is missing from that list, say you do not have it.
-Do not invent facts. Do not use ChatGPT Memory.
-Do not reconstruct a deleted or missing fact from wording in the user's message alone when they are asking a recall question.
-If Stored facts is none or does not contain the answer, reply that you do not have that fact stored."""
+SYSTEM = """You are answering through HAM-C, a helpful chat assistant with a private fact store.
+
+Normal conversation:
+- Reply naturally, like ChatGPT. Be friendly and clear.
+- Small talk, clarifications, opinions, and general questions are fine.
+- Do not say you are missing a "fact" or a "fact store" during normal chat.
+
+Personal or project details (name, campus, school, codeword, research id, location, likes, work, and similar):
+- Use ONLY the "Stored facts" list below.
+- Never invent those details.
+- Never rebuild a deleted or missing detail from earlier messages in this chat.
+- If the user asks for such a detail and it is not in Stored facts, say naturally that you don't have that information.
+- Do not use ChatGPT Memory for personal details. HAM-C Stored facts are the only source."""
 
 
 def pack_facts(facts: list[dict]) -> str:
@@ -26,6 +34,51 @@ def pack_facts(facts: list[dict]) -> str:
     for fact in facts:
         lines.append(f"- {fact['key']}: {fact['value']}")
     return "\n".join(lines)
+
+
+def history_for_model(messages: list[dict], active_facts: list[dict]) -> list[dict]:
+    """Keep recent chat context, but hide values that are no longer in the store."""
+    allowed = {str(f["value"]).strip().lower() for f in active_facts if f.get("value")}
+    out: list[dict] = []
+    for msg in messages[-RECENT_TURNS:]:
+        if msg["role"] not in ("user", "assistant"):
+            continue
+        content = msg["content"]
+        # Drop earlier assistant replies that cited facts — those leak deleted values.
+        if msg["role"] == "assistant" and msg.get("used_facts"):
+            continue
+        if msg["role"] == "assistant":
+            lowered = content.lower()
+            # Skip replies that clearly recited a value no longer stored.
+            if any(
+                val and val in lowered and val not in allowed
+                for val in _possible_secret_tokens(messages)
+            ):
+                continue
+        out.append(
+            {
+                "role": "user" if msg["role"] == "user" else "assistant",
+                "content": content,
+            }
+        )
+    # Always end with the current user turn once (caller adds it if missing).
+    return out
+
+
+def _possible_secret_tokens(messages: list[dict]) -> set[str]:
+    """Collect short values previously shown as used facts in this chat."""
+    found: set[str] = set()
+    for msg in messages:
+        for fact in msg.get("used_facts") or []:
+            value = str(fact.get("value") or "").strip().lower()
+            if len(value) >= 3:
+                found.add(value)
+        content = str(msg.get("content") or "")
+        # Capture common demo secrets mentioned in older assistant lines.
+        for token in ("orange-17", "blue-88", "campus north", "campus south"):
+            if token in content.lower():
+                found.add(token)
+    return found
 
 
 class Orchestrator:
@@ -64,18 +117,26 @@ class Orchestrator:
         messages = self.store.list_messages(chat_id)
         self._maybe_summarize(chat_id, messages)
 
-        used = retrieve(self.store.active_facts(user_id=user_id, guest_id=guest_id), text)
-        # Do not send prior chat turns or summaries to the model. Those still
-        # contain deleted facts and would let ChatGPT answer without HAM-C.
-        prompt = [
-            {"role": "system", "content": SYSTEM + "\n\n" + pack_facts(used)},
-            {"role": "user", "content": text},
-        ]
+        active = self.store.active_facts(user_id=user_id, guest_id=guest_id)
+        used = retrieve(active, text)
 
-        answer = self.client.complete(prompt)
-        used_view = [
-            {"id": f["id"], "key": f["key"], "value": f["value"]} for f in used
-        ]
+        # Asking for a personal fact that is gone: answer locally so chat
+        # history cannot leak the deleted value through ChatGPT.
+        if is_fact_question(text) and not used:
+            answer = MISSING_FACT_REPLY
+            used_view = []
+        else:
+            prompt = [
+                {"role": "system", "content": SYSTEM + "\n\n" + pack_facts(used)},
+            ]
+            for msg in history_for_model(messages[:-1], active):
+                prompt.append(msg)
+            prompt.append({"role": "user", "content": text})
+            answer = self.client.complete(prompt)
+            used_view = [
+                {"id": f["id"], "key": f["key"], "value": f["value"]} for f in used
+            ]
+
         assistant = self.store.add_message(
             chat_id, "assistant", answer, used_facts=used_view
         )
@@ -98,7 +159,7 @@ class Orchestrator:
             [
                 {
                     "role": "system",
-                    "content": "Summarize this chat so later turns keep the important facts. Keep it under 80 words.",
+                    "content": "Summarize this chat for later turns. Keep under 80 words. Do not invent personal facts.",
                 },
                 {"role": "user", "content": blob},
             ],

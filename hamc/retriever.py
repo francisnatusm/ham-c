@@ -17,6 +17,28 @@ def tokens(text: str) -> set[str]:
     return {w for w in words if w not in STOP and len(w) > 1}
 
 
+def is_fact_question(text: str) -> bool:
+    """True when the user is asking to recall a personal/project fact."""
+    q = text.lower().strip()
+    if not q:
+        return False
+    asking = bool(
+        re.search(
+            r"\b(what|which|where|who|whose|when's|when is|do you know|tell me|remind me)\b",
+            q,
+        )
+        or q.endswith("?")
+    )
+    if not asking:
+        return False
+    topics = (
+        r"name|codeword|code word|campus|school|university|research|"
+        r"\bid\b|location|live|from|work|job|company|like|love|prefer|"
+        r"favourite|favorite|project"
+    )
+    return bool(re.search(rf"\b({topics})\b", q) or "who am i" in q)
+
+
 def retrieve(facts: list[dict], question: str, k: int = 5) -> list[dict]:
     q = tokens(question)
     if not facts:

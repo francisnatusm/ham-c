@@ -58,7 +58,18 @@ class HamcTests(unittest.TestCase):
         again = self._send(chat["id"], "What is the project codeword?")
         self.assertFalse(again["used_facts"])
         self.assertNotIn("ORANGE-17", again["message"]["content"])
-        self.assertIn("do not have", again["message"]["content"].lower())
+        self.assertIn("information", again["message"]["content"].lower())
+        self.assertNotIn("fact stored", again["message"]["content"].lower())
+
+    def test_normal_chat_is_not_missing_fact_reply(self):
+        chat = self._chat()
+        result = self._send(chat["id"], "Okay what time is it?")
+        self.assertFalse(result["used_facts"])
+        self.assertNotIn("fact stored", result["message"]["content"].lower())
+        self.assertNotEqual(
+            result["message"]["content"].strip().lower(),
+            "i don't have that information.",
+        )
 
     def test_name_is_saved_and_recalled(self):
         chat = self._chat()
