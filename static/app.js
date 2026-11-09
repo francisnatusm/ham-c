@@ -49,9 +49,9 @@ const openChatsBtn = document.getElementById("open-chats");
 const closeChatsBtn = document.getElementById("close-chats");
 const openFactsBtn = document.getElementById("open-facts");
 const closeFactsBtn = document.getElementById("close-facts");
-const aboutHansiBtn = document.getElementById("about-hansi-btn");
-const aboutHansiPanel = document.getElementById("about-hansi");
-const aboutHansiBack = document.getElementById("about-hansi-back");
+const aboutHamcBtn = document.getElementById("about-hamc-btn");
+const aboutHamcPanel = document.getElementById("about-hamc");
+const aboutHamcBack = document.getElementById("about-hamc-back");
 
 const DEMOS = [
   ["Test 1 · save", "The project codeword is ORANGE-17."],
@@ -231,16 +231,16 @@ function openFactsDrawer() {
   closeUserMenu();
 }
 
-function openAboutHansi() {
+function openAboutHamc() {
   closeDrawers();
   closeUserMenu();
-  aboutHansiPanel.hidden = false;
+  aboutHamcPanel.hidden = false;
   document.body.classList.add("modal-open");
-  aboutHansiBack.focus();
+  aboutHamcBack.focus();
 }
 
-function closeAboutHansi() {
-  aboutHansiPanel.hidden = true;
+function closeAboutHamc() {
+  aboutHamcPanel.hidden = true;
   document.body.classList.remove("modal-open");
 }
 
@@ -633,14 +633,14 @@ closeChatsBtn.onclick = () => closeDrawers();
 openFactsBtn.onclick = () => openFactsDrawer();
 closeFactsBtn.onclick = () => closeDrawers();
 drawerBackdrop.onclick = () => closeDrawers();
-aboutHansiBtn.onclick = () => openAboutHansi();
-aboutHansiBack.onclick = () => closeAboutHansi();
-aboutHansiPanel.addEventListener("click", (event) => {
-  if (event.target === aboutHansiPanel) closeAboutHansi();
+aboutHamcBtn.onclick = () => openAboutHamc();
+aboutHamcBack.onclick = () => closeAboutHamc();
+aboutHamcPanel.addEventListener("click", (event) => {
+  if (event.target === aboutHamcPanel) closeAboutHamc();
 });
 document.addEventListener("keydown", (event) => {
-  if (event.key === "Escape" && !aboutHansiPanel.hidden) {
-    closeAboutHansi();
+  if (event.key === "Escape" && !aboutHamcPanel.hidden) {
+    closeAboutHamc();
   }
 });
 

@@ -43,13 +43,13 @@
         <h2>Try the three tests</h2>
         <p class="hint">Click a line to send it. Use Delete for Test 3 after you save a fact.</p>
         <div id="demos"></div>
-        <button type="button" id="about-hansi-btn" class="about-hansi-btn" aria-haspopup="dialog">
-          <span class="about-hansi-mark" aria-hidden="true">i</span>
-          <span class="about-hansi-copy">
-            <strong>About Hansi</strong>
+        <button type="button" id="about-hamc-btn" class="about-hamc-btn" aria-haspopup="dialog">
+          <span class="about-hamc-mark" aria-hidden="true">i</span>
+          <span class="about-hamc-copy">
+            <strong>About HAM-C</strong>
             <span>What this system is</span>
           </span>
-          <span class="about-hansi-arrow" aria-hidden="true">→</span>
+          <span class="about-hamc-arrow" aria-hidden="true">→</span>
         </button>
       </div>
       <div id="user-dock" class="user-dock" hidden>
@@ -127,33 +127,29 @@
     </div>
   </div>
 
-  <div id="about-hansi" class="about-panel" hidden>
-    <div class="about-panel-inner" role="dialog" aria-modal="true" aria-labelledby="about-hansi-title">
+  <div id="about-hamc" class="about-panel" hidden>
+    <div class="about-panel-inner" role="dialog" aria-modal="true" aria-labelledby="about-hamc-title">
       <div class="about-panel-bar">
-        <button type="button" id="about-hansi-back" class="about-back" aria-label="Back to Hansi">
+        <button type="button" id="about-hamc-back" class="about-back" aria-label="Back to HAM-C">
           <span aria-hidden="true">←</span> Back
         </button>
       </div>
       <div class="about-panel-body">
-        <p class="about-kicker">HAM-C</p>
-        <h2 id="about-hansi-title">About Hansi</h2>
+        <p class="about-kicker">Hierarchical Auditable Memory for ChatGPT</p>
+        <h2 id="about-hamc-title">About HAM-C</h2>
         <p>
-          Hansi is the everyday name for <strong>HAM-C</strong> —
-          Hierarchical Auditable Memory for ChatGPT.
+          HAM-C is a wrapper around ChatGPT. You chat here instead of on the
+          ChatGPT website. It talks to ChatGPT through an OpenAI API key and
+          shows the replies in this app.
         </p>
         <p>
-          It is a wrapper around ChatGPT. You chat here instead of on the
-          ChatGPT website. Hansi talks to ChatGPT through an OpenAI API key
-          and shows the replies in this app.
-        </p>
-        <p>
-          Memory is handled by Hansi, not by ChatGPT Memory. When you share a
-          lasting detail, Hansi saves it in the Fact store, can reuse it in
+          Memory is handled by HAM-C, not by ChatGPT Memory. When you share a
+          lasting detail, HAM-C saves it in the Fact store, can reuse it in
           later chats, and shows which fact was used under the answer.
         </p>
         <p>
           If you delete a chat, the facts that came from that chat are removed
-          too — so Hansi will not keep remembering them.
+          too — so HAM-C will not keep remembering them.
         </p>
         <p>
           That makes it easier to see and manage what the assistant knows about

@@ -807,7 +807,7 @@ form#composer button { width: auto; min-width: 88px; }
   opacity: 0.85;
 }
 
-.about-hansi-btn {
+.about-hamc-btn {
   display: flex;
   align-items: center;
   gap: 10px;
@@ -824,13 +824,13 @@ form#composer button { width: auto; min-width: 88px; }
   cursor: pointer;
   transition: background 0.15s ease, border-color 0.15s ease, transform 0.12s ease;
 }
-.about-hansi-btn:hover {
+.about-hamc-btn:hover {
   border-color: rgba(242, 236, 208, 0.85);
   background:
     linear-gradient(135deg, rgba(242, 236, 208, 0.22), rgba(31, 111, 178, 0.28));
   transform: translateY(-1px);
 }
-.about-hansi-mark {
+.about-hamc-mark {
   flex: 0 0 auto;
   width: 28px;
   height: 28px;
@@ -844,26 +844,26 @@ form#composer button { width: auto; min-width: 88px; }
   color: var(--navy-deep);
   background: var(--gold);
 }
-.about-hansi-copy {
+.about-hamc-copy {
   flex: 1;
   min-width: 0;
   display: flex;
   flex-direction: column;
   gap: 2px;
 }
-.about-hansi-copy strong {
+.about-hamc-copy strong {
   display: block;
   font-size: 14px;
   font-weight: 700;
   color: var(--gold);
   letter-spacing: 0.01em;
 }
-.about-hansi-copy span {
+.about-hamc-copy span {
   font-size: 11px;
   color: var(--soft);
   opacity: 0.85;
 }
-.about-hansi-arrow {
+.about-hamc-arrow {
   flex: 0 0 auto;
   font-size: 16px;
   color: var(--gold);

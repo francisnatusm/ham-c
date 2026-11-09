@@ -1,4 +1,4 @@
-const CACHE = "hamc-v3";
+const CACHE = "hamc-v4";
 const PRECACHE = [
   "/static/style.css",
   "/static/app.js",
