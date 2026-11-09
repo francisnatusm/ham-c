@@ -49,6 +49,9 @@ const openChatsBtn = document.getElementById("open-chats");
 const closeChatsBtn = document.getElementById("close-chats");
 const openFactsBtn = document.getElementById("open-facts");
 const closeFactsBtn = document.getElementById("close-facts");
+const aboutHansiBtn = document.getElementById("about-hansi-btn");
+const aboutHansiPanel = document.getElementById("about-hansi");
+const aboutHansiBack = document.getElementById("about-hansi-back");
 
 const DEMOS = [
   ["Test 1 · save", "The project codeword is ORANGE-17."],
@@ -226,6 +229,19 @@ function openFactsDrawer() {
   document.body.classList.add("facts-open");
   drawerBackdrop.hidden = false;
   closeUserMenu();
+}
+
+function openAboutHansi() {
+  closeDrawers();
+  closeUserMenu();
+  aboutHansiPanel.hidden = false;
+  document.body.classList.add("modal-open");
+  aboutHansiBack.focus();
+}
+
+function closeAboutHansi() {
+  aboutHansiPanel.hidden = true;
+  document.body.classList.remove("modal-open");
 }
 
 async function bootstrap() {
@@ -617,6 +633,16 @@ closeChatsBtn.onclick = () => closeDrawers();
 openFactsBtn.onclick = () => openFactsDrawer();
 closeFactsBtn.onclick = () => closeDrawers();
 drawerBackdrop.onclick = () => closeDrawers();
+aboutHansiBtn.onclick = () => openAboutHansi();
+aboutHansiBack.onclick = () => closeAboutHansi();
+aboutHansiPanel.addEventListener("click", (event) => {
+  if (event.target === aboutHansiPanel) closeAboutHansi();
+});
+document.addEventListener("keydown", (event) => {
+  if (event.key === "Escape" && !aboutHansiPanel.hidden) {
+    closeAboutHansi();
+  }
+});
 
 form.onsubmit = async (event) => {
   event.preventDefault();
