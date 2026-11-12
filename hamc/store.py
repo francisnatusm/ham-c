@@ -76,6 +76,18 @@ class Store:
                 created_at TEXT NOT NULL,
                 FOREIGN KEY (chat_id) REFERENCES chats(id)
             );
+            CREATE TABLE IF NOT EXISTS password_resets (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                email TEXT NOT NULL,
+                code_hash TEXT NOT NULL,
+                reset_token TEXT,
+                attempts INTEGER NOT NULL DEFAULT 0,
+                created_at TEXT NOT NULL,
+                expires_at TEXT NOT NULL,
+                used_at TEXT
+            );
+            CREATE INDEX IF NOT EXISTS idx_password_resets_email
+                ON password_resets(email);
             """
         )
         self._ensure_column("chats", "user_id", "INTEGER")
@@ -154,6 +166,74 @@ class Store:
         )
         self.conn.commit()
         return cur.rowcount > 0
+
+    # --- password reset ---
+    def create_password_reset(
+        self, email: str, code_hash: str, expires_at: str
+    ) -> int:
+        email = email.strip().lower()
+        # Invalidate older unused codes for this email
+        self.conn.execute(
+            """
+            UPDATE password_resets
+            SET used_at = ?
+            WHERE email = ? AND used_at IS NULL
+            """,
+            (utc_now(), email),
+        )
+        cur = self.conn.execute(
+            """
+            INSERT INTO password_resets
+                (email, code_hash, created_at, expires_at)
+            VALUES (?, ?, ?, ?)
+            """,
+            (email, code_hash, utc_now(), expires_at),
+        )
+        self.conn.commit()
+        return int(cur.lastrowid)
+
+    def latest_password_reset(self, email: str) -> dict | None:
+        row = self.conn.execute(
+            """
+            SELECT * FROM password_resets
+            WHERE email = ? AND used_at IS NULL
+            ORDER BY id DESC LIMIT 1
+            """,
+            (email.strip().lower(),),
+        ).fetchone()
+        return dict(row) if row else None
+
+    def bump_password_reset_attempts(self, reset_id: int) -> None:
+        self.conn.execute(
+            "UPDATE password_resets SET attempts = attempts + 1 WHERE id = ?",
+            (reset_id,),
+        )
+        self.conn.commit()
+
+    def set_password_reset_token(self, reset_id: int, reset_token: str) -> None:
+        self.conn.execute(
+            "UPDATE password_resets SET reset_token = ? WHERE id = ?",
+            (reset_token, reset_id),
+        )
+        self.conn.commit()
+
+    def get_password_reset_by_token(self, email: str, reset_token: str) -> dict | None:
+        row = self.conn.execute(
+            """
+            SELECT * FROM password_resets
+            WHERE email = ? AND reset_token = ? AND used_at IS NULL
+            ORDER BY id DESC LIMIT 1
+            """,
+            (email.strip().lower(), reset_token),
+        ).fetchone()
+        return dict(row) if row else None
+
+    def mark_password_reset_used(self, reset_id: int) -> None:
+        self.conn.execute(
+            "UPDATE password_resets SET used_at = ? WHERE id = ?",
+            (utc_now(), reset_id),
+        )
+        self.conn.commit()
 
     def delete_user(self, user_id: int) -> bool:
         """Remove account and soft-delete that user's chats/facts."""

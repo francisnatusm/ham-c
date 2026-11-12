@@ -117,12 +117,48 @@
         <label>Email
           <input id="auth-email" type="email" autocomplete="off" required placeholder="you@example.com">
         </label>
-        <label>Password
+        <label id="auth-password-wrap">Password
           <input id="auth-password" type="password" autocomplete="off" required minlength="6" placeholder="At least 6 characters">
         </label>
+        <button id="forgot-link" type="button" class="forgot-link" hidden>Forgot password?</button>
         <p id="auth-error" class="auth-error" hidden></p>
         <button id="auth-submit" type="submit">Sign in</button>
       </form>
+
+      <div id="forgot-panel" class="forgot-panel" hidden>
+        <p class="forgot-title">Reset password</p>
+        <p id="forgot-hint" class="forgot-hint">Enter the email for your account. We will send a 6-digit code.</p>
+
+        <div id="forgot-step-email" class="forgot-step">
+          <label>Email
+            <input id="forgot-email" type="email" autocomplete="email" placeholder="you@example.com">
+          </label>
+          <button id="forgot-send" type="button" class="auth-primary">Send code</button>
+        </div>
+
+        <div id="forgot-step-code" class="forgot-step" hidden>
+          <label>Code from email
+            <input id="forgot-code" type="text" inputmode="numeric" maxlength="6" placeholder="6-digit code" autocomplete="one-time-code">
+          </label>
+          <button id="forgot-verify" type="button" class="auth-primary">Verify code</button>
+          <button id="forgot-resend" type="button" class="forgot-secondary">Resend code</button>
+        </div>
+
+        <div id="forgot-step-password" class="forgot-step" hidden>
+          <label>New password
+            <input id="forgot-new-pw" type="password" minlength="6" placeholder="At least 6 characters" autocomplete="new-password">
+          </label>
+          <label>Confirm new password
+            <input id="forgot-confirm-pw" type="password" minlength="6" placeholder="Type it again" autocomplete="new-password">
+          </label>
+          <button id="forgot-reset" type="button" class="auth-primary">Set new password</button>
+        </div>
+
+        <p id="forgot-error" class="auth-error" hidden></p>
+        <p id="forgot-ok" class="forgot-ok" hidden></p>
+        <button id="forgot-back" type="button" class="forgot-secondary">Back to sign in</button>
+      </div>
+
       <button id="guest-btn" type="button" class="guest-btn">Continue as guest</button>
     </div>
   </div>

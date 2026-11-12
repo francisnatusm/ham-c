@@ -5,7 +5,7 @@ from __future__ import annotations
 import os
 import secrets
 import uuid
-from datetime import timedelta
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 from dotenv import load_dotenv
@@ -13,7 +13,12 @@ from flask import Flask, jsonify, render_template, request, send_from_directory,
 from werkzeug.security import check_password_hash, generate_password_hash
 
 from hamc.chatgpt import ChatGPTClient
-from hamc.mailer import send_account_deleted_email, send_welcome_email
+from hamc.mailer import (
+    send_account_deleted_email,
+    send_password_reset_email,
+    send_welcome_email,
+    smtp_configured,
+)
 from hamc.orchestrator import Orchestrator
 from hamc.store import EMAIL_RE, Store
 
@@ -178,6 +183,127 @@ def auth_login():
 def auth_logout():
     session.clear()
     return jsonify({"ok": True, "mode": "none", "auth_required": True})
+
+
+def _parse_utc(stamp: str) -> datetime:
+    return datetime.strptime(stamp, "%Y-%m-%dT%H:%M:%SZ").replace(tzinfo=timezone.utc)
+
+
+@app.post("/api/auth/forgot")
+def auth_forgot():
+    """Send a 6-digit code to the account email (if it exists)."""
+    data = request.get_json(force=True) or {}
+    email = str(data.get("email", "")).strip().lower()
+    if not EMAIL_RE.match(email):
+        return jsonify({"error": "Enter a valid email address."}), 400
+    if not smtp_configured():
+        return jsonify(
+            {
+                "error": "Password reset email is not configured on this server. "
+                "Ask the admin to set SMTP, or change your password after signing in."
+            }
+        ), 503
+
+    row = store.get_user_by_email(email)
+    # Always look successful to avoid email enumeration, but only send when registered.
+    generic = {
+        "ok": True,
+        "message": "If that email is registered, we sent a 6-digit code. Check your inbox.",
+    }
+    if not row:
+        return jsonify(generic)
+
+    latest = store.latest_password_reset(email)
+    if latest:
+        try:
+            created = _parse_utc(latest["created_at"])
+            if datetime.now(timezone.utc) - created < timedelta(seconds=45):
+                return jsonify(
+                    {"error": "Please wait a moment before requesting another code."}
+                ), 429
+        except ValueError:
+            pass
+
+    code = f"{secrets.randbelow(1_000_000):06d}"
+    expires = (datetime.now(timezone.utc) + timedelta(minutes=15)).strftime(
+        "%Y-%m-%dT%H:%M:%SZ"
+    )
+    store.create_password_reset(email, generate_password_hash(code), expires)
+    display = (row["display_name"] if row["display_name"] is not None else "") or ""
+    sent = send_password_reset_email(email, display, code)
+    if not sent:
+        return jsonify({"error": "Could not send the email. Try again in a minute."}), 502
+    return jsonify(generic)
+
+
+@app.post("/api/auth/forgot/verify")
+def auth_forgot_verify():
+    """Check the email code and return a short-lived reset token."""
+    data = request.get_json(force=True) or {}
+    email = str(data.get("email", "")).strip().lower()
+    code = str(data.get("code", "")).strip().replace(" ", "")
+    if not EMAIL_RE.match(email):
+        return jsonify({"error": "Enter a valid email address."}), 400
+    if not code.isdigit() or len(code) != 6:
+        return jsonify({"error": "Enter the 6-digit code from your email."}), 400
+
+    reset = store.latest_password_reset(email)
+    if not reset:
+        return jsonify({"error": "No active reset code. Request a new one."}), 400
+    try:
+        if datetime.now(timezone.utc) > _parse_utc(reset["expires_at"]):
+            return jsonify({"error": "That code has expired. Request a new one."}), 400
+    except ValueError:
+        return jsonify({"error": "That code is invalid. Request a new one."}), 400
+
+    if int(reset.get("attempts") or 0) >= 8:
+        store.mark_password_reset_used(reset["id"])
+        return jsonify({"error": "Too many attempts. Request a new code."}), 429
+
+    if not check_password_hash(reset["code_hash"], code):
+        store.bump_password_reset_attempts(reset["id"])
+        return jsonify({"error": "Wrong code. Check your email and try again."}), 401
+
+    token = secrets.token_urlsafe(24)
+    store.set_password_reset_token(reset["id"], token)
+    return jsonify({"ok": True, "reset_token": token, "email": email})
+
+
+@app.post("/api/auth/forgot/reset")
+def auth_forgot_reset():
+    """Set a new password after the email code was verified."""
+    data = request.get_json(force=True) or {}
+    email = str(data.get("email", "")).strip().lower()
+    token = str(data.get("reset_token", "")).strip()
+    new_password = str(data.get("new_password", ""))
+    if not EMAIL_RE.match(email):
+        return jsonify({"error": "Enter a valid email address."}), 400
+    if not token:
+        return jsonify({"error": "Verify the email code first."}), 400
+    if len(new_password) < 6:
+        return jsonify({"error": "New password must be at least 6 characters."}), 400
+
+    reset = store.get_password_reset_by_token(email, token)
+    if not reset:
+        return jsonify({"error": "Reset session expired. Start again from Forgot password."}), 400
+    try:
+        if datetime.now(timezone.utc) > _parse_utc(reset["expires_at"]):
+            return jsonify({"error": "That reset session expired. Request a new code."}), 400
+    except ValueError:
+        return jsonify({"error": "That reset session is invalid. Request a new code."}), 400
+
+    user = store.get_user_by_email(email)
+    if not user:
+        return jsonify({"error": "Account not found."}), 404
+
+    store.update_user_password(user["id"], generate_password_hash(new_password))
+    store.mark_password_reset_used(reset["id"])
+    return jsonify(
+        {
+            "ok": True,
+            "message": "Password updated. Sign in with your new password.",
+        }
+    )
 
 
 @app.post("/api/account/profile")

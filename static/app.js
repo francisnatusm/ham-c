@@ -16,8 +16,27 @@ const authName = document.getElementById("auth-name");
 const authNickname = document.getElementById("auth-nickname");
 const authEmail = document.getElementById("auth-email");
 const authPassword = document.getElementById("auth-password");
+const authPasswordWrap = document.getElementById("auth-password-wrap");
 const authError = document.getElementById("auth-error");
 const authSubmit = document.getElementById("auth-submit");
+const authTabs = document.querySelector(".auth-tabs");
+const forgotLink = document.getElementById("forgot-link");
+const forgotPanel = document.getElementById("forgot-panel");
+const forgotHint = document.getElementById("forgot-hint");
+const forgotStepEmail = document.getElementById("forgot-step-email");
+const forgotStepCode = document.getElementById("forgot-step-code");
+const forgotStepPassword = document.getElementById("forgot-step-password");
+const forgotEmail = document.getElementById("forgot-email");
+const forgotCode = document.getElementById("forgot-code");
+const forgotNewPw = document.getElementById("forgot-new-pw");
+const forgotConfirmPw = document.getElementById("forgot-confirm-pw");
+const forgotSend = document.getElementById("forgot-send");
+const forgotVerify = document.getElementById("forgot-verify");
+const forgotResend = document.getElementById("forgot-resend");
+const forgotReset = document.getElementById("forgot-reset");
+const forgotBack = document.getElementById("forgot-back");
+const forgotError = document.getElementById("forgot-error");
+const forgotOk = document.getElementById("forgot-ok");
 const guestBtn = document.getElementById("guest-btn");
 const signinBtn = document.getElementById("signin-btn");
 const authClose = document.getElementById("auth-close");
@@ -67,6 +86,8 @@ let currentChatId = null;
 let busy = false;
 let authMode = "login";
 let currentUser = null;
+let forgotStep = "email";
+let forgotResetToken = "";
 
 function setStatus(message, isError = false) {
   if (!message) {
@@ -88,6 +109,8 @@ function setBusy(on) {
 }
 
 function setAuthError(message) {
+  authError.style.background = "";
+  authError.style.color = "";
   if (!message) {
     authError.hidden = true;
     authError.textContent = "";
@@ -118,8 +141,73 @@ function clearAuthForm() {
   setAuthError("");
 }
 
+function setForgotMsg(errorText = "", okText = "") {
+  if (errorText) {
+    forgotError.hidden = false;
+    forgotError.textContent = errorText;
+  } else {
+    forgotError.hidden = true;
+    forgotError.textContent = "";
+  }
+  if (okText) {
+    forgotOk.hidden = false;
+    forgotOk.textContent = okText;
+  } else {
+    forgotOk.hidden = true;
+    forgotOk.textContent = "";
+  }
+}
+
+function clearForgotForm() {
+  forgotEmail.value = "";
+  forgotCode.value = "";
+  forgotNewPw.value = "";
+  forgotConfirmPw.value = "";
+  forgotResetToken = "";
+  forgotStep = "email";
+  setForgotMsg();
+}
+
+function showForgotStep(step) {
+  forgotStep = step;
+  forgotStepEmail.hidden = step !== "email";
+  forgotStepCode.hidden = step !== "code";
+  forgotStepPassword.hidden = step !== "password";
+  if (step === "email") {
+    forgotHint.textContent =
+      "Enter the email for your account. We will send a 6-digit code.";
+  } else if (step === "code") {
+    forgotHint.textContent =
+      "Check your email for the 6-digit code, then enter it here.";
+  } else {
+    forgotHint.textContent = "Choose a new password for your account.";
+  }
+}
+
+function openForgotPanel(prefillEmail = "") {
+  authForm.hidden = true;
+  if (authTabs) authTabs.hidden = true;
+  guestBtn.hidden = true;
+  forgotPanel.hidden = false;
+  clearForgotForm();
+  if (prefillEmail) forgotEmail.value = prefillEmail;
+  showForgotStep("email");
+  setAuthError("");
+  forgotEmail.focus();
+}
+
+function closeForgotPanel() {
+  forgotPanel.hidden = true;
+  authForm.hidden = false;
+  if (authTabs) authTabs.hidden = false;
+  guestBtn.hidden = false;
+  clearForgotForm();
+  setAuthTab("login");
+}
+
 function openAuthModal() {
   clearAuthForm();
+  closeForgotPanel();
   setAuthTab("login");
   authModal.hidden = false;
   document.body.classList.add("modal-open");
@@ -131,6 +219,7 @@ function closeAuthModal() {
   authModal.hidden = true;
   if (settingsModal.hidden) document.body.classList.remove("modal-open");
   clearAuthForm();
+  closeForgotPanel();
   setAuthTab("login");
 }
 
@@ -446,6 +535,9 @@ function setAuthTab(mode) {
   authNicknameWrap.hidden = !isRegister;
   authName.required = isRegister;
   authNickname.required = isRegister;
+  if (authPasswordWrap) authPasswordWrap.hidden = false;
+  authPassword.required = true;
+  forgotLink.hidden = isRegister;
   if (!isRegister) {
     authName.value = "";
     authNickname.value = "";
@@ -454,12 +546,126 @@ function setAuthTab(mode) {
 }
 
 document.querySelectorAll(".auth-tab").forEach((tab) => {
-  tab.onclick = () => setAuthTab(tab.dataset.tab);
+  tab.onclick = () => {
+    closeForgotPanel();
+    setAuthTab(tab.dataset.tab);
+  };
 });
+
+forgotLink.onclick = () => {
+  openForgotPanel(authEmail.value.trim());
+};
+
+forgotBack.onclick = () => {
+  const email = forgotEmail.value.trim();
+  closeForgotPanel();
+  if (email) authEmail.value = email;
+  authPassword.focus();
+};
+
+async function requestForgotCode() {
+  setForgotMsg();
+  const email = forgotEmail.value.trim();
+  if (!email) {
+    setForgotMsg("Enter your account email.");
+    return;
+  }
+  forgotSend.disabled = true;
+  try {
+    const res = await api("/api/auth/forgot", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email }),
+    });
+    setForgotMsg("", res.message || "If that email is registered, we sent a code.");
+    showForgotStep("code");
+    forgotCode.focus();
+  } catch (err) {
+    setForgotMsg(err.message);
+  } finally {
+    forgotSend.disabled = false;
+  }
+}
+
+forgotSend.onclick = () => requestForgotCode();
+forgotResend.onclick = () => requestForgotCode();
+
+forgotVerify.onclick = async () => {
+  setForgotMsg();
+  const email = forgotEmail.value.trim();
+  const code = forgotCode.value.trim();
+  if (!code) {
+    setForgotMsg("Enter the 6-digit code from your email.");
+    return;
+  }
+  forgotVerify.disabled = true;
+  try {
+    const res = await api("/api/auth/forgot/verify", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email, code }),
+    });
+    forgotResetToken = res.reset_token || "";
+    setForgotMsg("", "Code verified. Set your new password.");
+    showForgotStep("password");
+    forgotNewPw.focus();
+  } catch (err) {
+    setForgotMsg(err.message);
+  } finally {
+    forgotVerify.disabled = false;
+  }
+};
+
+forgotReset.onclick = async () => {
+  setForgotMsg();
+  const email = forgotEmail.value.trim();
+  const pw = forgotNewPw.value;
+  const confirm = forgotConfirmPw.value;
+  if (pw.length < 6) {
+    setForgotMsg("New password must be at least 6 characters.");
+    return;
+  }
+  if (pw !== confirm) {
+    setForgotMsg("Passwords do not match.");
+    return;
+  }
+  if (!forgotResetToken) {
+    setForgotMsg("Verify the email code first.");
+    showForgotStep("code");
+    return;
+  }
+  forgotReset.disabled = true;
+  try {
+    const res = await api("/api/auth/forgot/reset", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        email,
+        reset_token: forgotResetToken,
+        new_password: pw,
+      }),
+    });
+    closeForgotPanel();
+    setAuthTab("login");
+    authEmail.value = email;
+    authPassword.value = "";
+    authError.hidden = false;
+    authError.textContent = res.message || "Password updated. Sign in with your new password.";
+    authError.style.background = "rgba(40, 110, 70, 0.35)";
+    authError.style.color = "#c8f0d8";
+    authPassword.focus();
+  } catch (err) {
+    setForgotMsg(err.message);
+  } finally {
+    forgotReset.disabled = false;
+  }
+};
 
 authForm.onsubmit = async (event) => {
   event.preventDefault();
   setAuthError("");
+  authError.style.background = "";
+  authError.style.color = "";
   const email = authEmail.value.trim();
   const password = authPassword.value;
   const path = authMode === "login" ? "/api/auth/login" : "/api/auth/register";

@@ -1,4 +1,4 @@
-"""Send account emails over SMTP (welcome + deletion)."""
+"""Send account emails over SMTP (welcome, deletion, password reset)."""
 
 from __future__ import annotations
 
@@ -110,6 +110,46 @@ def send_welcome_email(to_email: str, display_name: str, nickname: str) -> None:
 </html>
 """
     send_email_async(to_email, subject, text, html)
+
+
+def send_password_reset_email(to_email: str, display_name: str, code: str) -> bool:
+    """Send a 6-digit reset code. Returns True if SMTP accepted the message."""
+    link = public_app_url()
+    name = display_name or "there"
+    safe = escape(name)
+    safe_code = escape(code)
+    subject = "HAM-C password reset code"
+    text = (
+        f"Hi {name},\n\n"
+        "We received a request to reset your HAM-C password.\n\n"
+        f"Your verification code is: {code}\n\n"
+        "Enter this code in HAM-C to choose a new password.\n"
+        "The code expires in 15 minutes.\n\n"
+        "If you did not ask to reset your password, you can ignore this email.\n\n"
+        f"Open HAM-C: {link}\n\n"
+        "— HAM-C\n"
+    )
+    html = f"""\
+<html>
+  <body style="font-family:Segoe UI,Arial,sans-serif;color:#0b1f3a;line-height:1.5;">
+    <h2 style="color:#0b1f3a;">Password reset</h2>
+    <p>Hi {safe},</p>
+    <p>We received a request to reset your HAM-C password.</p>
+    <p style="font-size:28px;letter-spacing:0.18em;font-weight:700;margin:20px 0;">
+      {safe_code}
+    </p>
+    <p>Enter this code in HAM-C to choose a new password. It expires in <strong>15 minutes</strong>.</p>
+    <p style="color:#556;">If you did not ask to reset your password, you can ignore this email.</p>
+    <p>
+      <a href="{escape(link)}" style="display:inline-block;padding:10px 16px;background:#1f6fb2;color:#fff;text-decoration:none;border-radius:8px;">
+        Open HAM-C
+      </a>
+    </p>
+    <p style="margin-top:24px;color:#556;font-size:13px;">— HAM-C</p>
+  </body>
+</html>
+"""
+    return send_email(to_email, subject, text, html)
 
 
 def send_account_deleted_email(to_email: str, display_name: str, nickname: str) -> None:
