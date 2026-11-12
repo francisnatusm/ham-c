@@ -1,4 +1,4 @@
-"""SQLite store for users, chats, messages, facts, and summaries."""
+"""SQLite / Turso store for users, chats, messages, facts, and summaries."""
 
 from __future__ import annotations
 
@@ -7,6 +7,8 @@ import re
 import sqlite3
 from datetime import datetime, timezone
 from pathlib import Path
+
+from hamc.db import connect_store_db
 
 
 def utc_now() -> str:
@@ -17,12 +19,19 @@ EMAIL_RE = re.compile(r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
 
 
 class Store:
-    def __init__(self, path: Path):
-        path.parent.mkdir(parents=True, exist_ok=True)
-        self.path = path
-        self.conn = sqlite3.connect(path, check_same_thread=False)
-        self.conn.row_factory = sqlite3.Row
-        self.conn.execute("PRAGMA foreign_keys = ON")
+    def __init__(self, path: Path | None = None, *, conn=None, ephemeral: bool = False):
+        """
+        path: local SQLite file (ignored when Turso env vars are set).
+        conn: optional pre-opened connection (tests).
+        """
+        if conn is not None:
+            self.conn = conn
+            self.path = path
+            self.ephemeral = ephemeral
+        else:
+            local = path or Path("data") / "hamc.db"
+            self.conn, self.ephemeral = connect_store_db(local)
+            self.path = local
         self._migrate()
 
     def close(self) -> None:
@@ -356,7 +365,7 @@ class Store:
         ).fetchall()
         return [self._message(r) for r in rows]
 
-    def _message(self, row: sqlite3.Row) -> dict:
+    def _message(self, row) -> dict:
         item = dict(row)
         item["used_facts"] = json.loads(item.get("used_facts") or "[]")
         return item

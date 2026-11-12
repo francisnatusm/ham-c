@@ -30,15 +30,34 @@ app.secret_key = os.getenv("HAMC_SECRET", secrets.token_hex(32))
 app.permanent_session_lifetime = timedelta(days=30)
 
 def database_path() -> Path:
-    # Vercel only allows writes in /tmp, and that file is wiped between cold starts.
-    if os.getenv("VERCEL"):
-        return Path("/tmp/hamc.db")
+    # Local default. On Vercel, Store uses Turso when configured;
+    # /tmp is only a last-resort ephemeral fallback.
     return ROOT / "data" / "hamc.db"
 
 
 store = Store(database_path())
 client = ChatGPTClient()
 hamc = Orchestrator(store, client)
+
+
+def _ephemeral_db_error():
+    """Vercel /tmp SQLite is wiped on cold starts — accounts vanish without Turso."""
+    if getattr(store, "ephemeral", False):
+        return (
+            jsonify(
+                {
+                    "error": (
+                        "Server database is temporary (Vercel /tmp). "
+                        "Accounts are wiped after idle time. "
+                        "Admin must set TURSO_DATABASE_URL and TURSO_AUTH_TOKEN "
+                        "on Vercel so logins persist."
+                    ),
+                    "ephemeral_db": True,
+                }
+            ),
+            503,
+        )
+    return None
 
 
 def owner() -> tuple[int | None, str | None]:
@@ -101,17 +120,19 @@ def service_worker():
 @app.get("/api/auth/me")
 def auth_me():
     user_id, guest_id = owner()
+    db_meta = {"ephemeral_db": bool(getattr(store, "ephemeral", False))}
     if user_id is not None:
         user = store.get_user(user_id)
         if not user:
             session.clear()
-            return jsonify({"mode": "none", "auth_required": True})
+            return jsonify({"mode": "none", "auth_required": True, **db_meta})
         return jsonify(
             {
                 "mode": "user",
                 "auth_required": False,
                 "user": user_payload(user),
                 "chatgpt_ready": client.available,
+                **db_meta,
             }
         )
     if guest_id:
@@ -121,9 +142,17 @@ def auth_me():
                 "auth_required": False,
                 "guest_id": guest_id,
                 "chatgpt_ready": client.available,
+                **db_meta,
             }
         )
-    return jsonify({"mode": "none", "auth_required": True, "chatgpt_ready": client.available})
+    return jsonify(
+        {
+            "mode": "none",
+            "auth_required": True,
+            "chatgpt_ready": client.available,
+            **db_meta,
+        }
+    )
 
 
 @app.post("/api/auth/guest")
@@ -136,6 +165,9 @@ def auth_guest():
 
 @app.post("/api/auth/register")
 def auth_register():
+    blocked = _ephemeral_db_error()
+    if blocked:
+        return blocked
     data = request.get_json(force=True) or {}
     email = str(data.get("email", "")).strip().lower()
     password = str(data.get("password", ""))
@@ -192,6 +224,9 @@ def _parse_utc(stamp: str) -> datetime:
 @app.post("/api/auth/forgot")
 def auth_forgot():
     """Send a 6-digit code to the account email (if it exists)."""
+    blocked = _ephemeral_db_error()
+    if blocked:
+        return blocked
     data = request.get_json(force=True) or {}
     email = str(data.get("email", "")).strip().lower()
     if not EMAIL_RE.match(email):

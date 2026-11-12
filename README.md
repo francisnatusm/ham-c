@@ -21,6 +21,20 @@ python app.py
 
 Open http://127.0.0.1:5000
 
+## Persistent accounts on Vercel (important)
+
+Vercel cannot keep a normal SQLite file. The old `/tmp/hamc.db` setup is **wiped on every cold start**, so accounts created today disappear tomorrow (wrong password / no reset email).
+
+Fix: use a free **Turso** database (SQLite-compatible) and set these on Vercel:
+
+1. Create a DB at https://turso.tech  
+2. Copy `TURSO_DATABASE_URL` and `TURSO_AUTH_TOKEN`  
+3. Add both in Vercel → Project → Settings → Environment Variables  
+4. Also keep your SMTP variables there so “Forgot password” emails work  
+5. Redeploy
+
+Local laptop use still works with `data/hamc.db` and does not need Turso.
+
 ## Demo the three tests
 
 1. Middle recall  
