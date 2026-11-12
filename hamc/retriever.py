@@ -45,8 +45,12 @@ def retrieve(facts: list[dict], question: str, k: int = 5) -> list[dict]:
         return []
     scored = []
     for fact in facts:
-        key_toks = tokens(str(fact["key"]))
-        val_toks = tokens(str(fact["value"]))
+        fkey = str(fact.get("key") or fact.get("fact_key") or "")
+        fval = str(fact.get("value") or "")
+        if not fkey or not fval:
+            continue
+        key_toks = tokens(fkey)
+        val_toks = tokens(fval)
         score = 0.0
         if key_toks & q:
             score += 3.0
@@ -54,38 +58,38 @@ def retrieve(facts: list[dict], question: str, k: int = 5) -> list[dict]:
             score += 2.0
         # Keep a little recency so a fresh update beats an old unused fact.
         score += 0.1
-        if "campus" in q and fact["key"] == "campus":
+        if "campus" in q and fkey == "campus":
             score += 4.0
-        if any(w in q for w in ("codeword", "code", "project")) and fact["key"] in {
+        if any(w in q for w in ("codeword", "code", "project")) and fkey in {
             "codeword",
             "project_codeword",
         }:
             score += 4.0
-        if any(w in q for w in ("id", "research")) and fact["key"] in {
+        if any(w in q for w in ("id", "research")) and fkey in {
             "research_id",
             "id",
         }:
             score += 4.0
-        if "name" in q and fact["key"] == "name":
+        if "name" in q and fkey == "name":
             score += 4.0
-        if any(w in q for w in ("study", "school", "university", "campus")) and fact["key"] in {
+        if any(w in q for w in ("study", "school", "university", "campus")) and fkey in {
             "school",
             "campus",
             "university",
         }:
             score += 4.0
-        if any(w in q for w in ("live", "from", "location", "where")) and fact["key"] in {
+        if any(w in q for w in ("live", "from", "location", "where")) and fkey in {
             "location",
             "city",
             "country",
         }:
             score += 4.0
-        if any(w in q for w in ("like", "love", "enjoy", "prefer", "favourite", "favorite")) and fact["key"] in {
+        if any(w in q for w in ("like", "love", "enjoy", "prefer", "favourite", "favorite")) and fkey in {
             "like",
             "prefer",
         }:
             score += 4.0
-        if any(w in q for w in ("work", "job", "company")) and fact["key"] in {
+        if any(w in q for w in ("work", "job", "company")) and fkey in {
             "work",
             "job",
             "company",

@@ -27,12 +27,23 @@ Personal or project details (name, campus, school, codeword, research id, locati
 - Do not use ChatGPT Memory for personal details. HAM-C Stored facts are the only source."""
 
 
+def _fact_view(fact: dict) -> dict:
+    return {
+        "id": fact.get("id"),
+        "key": fact.get("key") or fact.get("fact_key"),
+        "value": fact.get("value"),
+    }
+
+
 def pack_facts(facts: list[dict]) -> str:
     if not facts:
         return "Stored facts: none."
     lines = ["Stored facts (use these if relevant):"]
     for fact in facts:
-        lines.append(f"- {fact['key']}: {fact['value']}")
+        view = _fact_view(fact)
+        if view["key"] is None or view["value"] is None:
+            continue
+        lines.append(f"- {view['key']}: {view['value']}")
     return "\n".join(lines)
 
 
@@ -133,9 +144,7 @@ class Orchestrator:
                 prompt.append(msg)
             prompt.append({"role": "user", "content": text})
             answer = self.client.complete(prompt)
-            used_view = [
-                {"id": f["id"], "key": f["key"], "value": f["value"]} for f in used
-            ]
+            used_view = [_fact_view(f) for f in used if f.get("key") or f.get("fact_key")]
 
         assistant = self.store.add_message(
             chat_id, "assistant", answer, used_facts=used_view
@@ -144,7 +153,7 @@ class Orchestrator:
             "message": assistant,
             "used_facts": used_view,
             "saved_facts": [
-                {"id": f["id"], "key": f["key"], "value": f["value"]} for f in saved
+                _fact_view(f) for f in saved if f.get("key") or f.get("fact_key")
             ],
         }
 

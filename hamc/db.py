@@ -25,6 +25,11 @@ class DictRow(dict):
         return super().keys()
 
 
+def _normalize_row_dict(data: dict) -> DictRow:
+    """Force string keys (libSQL sometimes returns odd key types)."""
+    return DictRow({str(k): v for k, v in data.items()})
+
+
 class CompatCursor:
     def __init__(self, cursor):
         self._cursor = cursor
@@ -36,9 +41,23 @@ class CompatCursor:
         if row is None:
             return None
         if isinstance(row, dict):
-            return DictRow(row)
-        cols = [d[0] for d in (self.description or [])]
-        return DictRow(zip(cols, row))
+            return _normalize_row_dict(row)
+        # sqlite3.Row and similar mappings
+        if hasattr(row, "keys") and not isinstance(row, (str, bytes, list, tuple)):
+            try:
+                return _normalize_row_dict({k: row[k] for k in row.keys()})
+            except Exception:
+                pass
+        cols = []
+        for d in self.description or []:
+            # description entries may be tuples or objects
+            cols.append(str(d[0] if isinstance(d, (tuple, list)) else getattr(d, "name", d)))
+        if cols:
+            return _normalize_row_dict(dict(zip(cols, row)))
+        # Last resort: avoid empty dicts that later raise KeyError 'key'
+        if isinstance(row, (list, tuple)):
+            return _normalize_row_dict({str(i): v for i, v in enumerate(row)})
+        return _normalize_row_dict({"value": row})
 
     def fetchone(self):
         return self._wrap_row(self._cursor.fetchone())
@@ -51,6 +70,12 @@ class CompatCursor:
         self._cursor.execute(sql, params)
         self.description = getattr(self._cursor, "description", None)
         self.lastrowid = getattr(self._cursor, "lastrowid", None)
+        # Some libsql builds expose last_insert_rowid on the connection instead
+        if self.lastrowid in (None, 0) and hasattr(self._cursor, "last_insert_rowid"):
+            try:
+                self.lastrowid = self._cursor.last_insert_rowid()
+            except Exception:
+                pass
         self.rowcount = getattr(self._cursor, "rowcount", -1)
         return self
 

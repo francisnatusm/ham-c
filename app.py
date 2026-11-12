@@ -465,7 +465,12 @@ def delete_chat(chat_id: int):
         {
             "ok": True,
             "removed_facts": [
-                {"id": f["id"], "key": f["key"], "value": f["value"]} for f in removed
+                {
+                    "id": f.get("id"),
+                    "key": f.get("key"),
+                    "value": f.get("value"),
+                }
+                for f in removed
             ],
         }
     )
